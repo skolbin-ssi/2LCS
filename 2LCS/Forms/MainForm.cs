@@ -9,7 +9,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Linq.Dynamic;
+using System.Linq.Dynamic.Core;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -83,52 +83,59 @@ namespace LCS.Forms
 
         public static RDPConnectionDetails ChooseRdpLogonUser(List<RDPConnectionDetails> rdpList)
         {
-            Form form = new Form();
-            Button button_OK = new Button() { Text = "OK", Location = new Point(60, 30) };
-            Button button_Cancel = new Button() { Text = "Cancel", Location = new Point(140, 30) };
-            button_OK.DialogResult = DialogResult.OK;
-            button_Cancel.DialogResult = DialogResult.Cancel;
-            FlowLayoutPanel panel = new FlowLayoutPanel
+            if (Properties.Settings.Default.alwaysLogAsAdmin)
             {
-                Dock = DockStyle.Fill
-            };
-
-            form.Text = "Choose user";
-            form.ClientSize = new Size(280, 60);
-            form.FormBorderStyle = FormBorderStyle.FixedDialog;
-            form.StartPosition = FormStartPosition.CenterScreen;
-            form.AcceptButton = button_OK;
-            form.CancelButton = button_Cancel;
-            form.MinimizeBox = false;
-            form.MaximizeBox = false;
-            form.ControlBox = false;
-
-            form.Controls.AddRange(new Control[] { button_OK, button_Cancel });
-            var i = 1;
-            foreach (var rdpEntry in rdpList.OrderBy(x => x.Username))
-            {
-                if (i == 1)
-                {
-                    panel.Controls.Add(new RadioButton() { Text = rdpEntry.Username, Checked = true });
-                }
-                else
-                {
-                    panel.Controls.Add(new RadioButton() { Text = rdpEntry.Username });
-                }
-                i++;
+                return rdpList.FirstOrDefault(x => x.Username.Contains("Admin"));
             }
-            form.Controls.Add(panel);
+            else
+            {
+                Form form = new Form();
+                Button button_OK = new Button() { Text = "OK", Location = new Point(60, 30) };
+                Button button_Cancel = new Button() { Text = "Cancel", Location = new Point(140, 30) };
+                button_OK.DialogResult = DialogResult.OK;
+                button_Cancel.DialogResult = DialogResult.Cancel;
+                FlowLayoutPanel panel = new FlowLayoutPanel
+                {
+                    Dock = DockStyle.Fill
+                };
 
-            DialogResult dialogResult = form.ShowDialog();
+                form.Text = "Choose user";
+                form.ClientSize = new Size(280, 60);
+                form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.StartPosition = FormStartPosition.CenterScreen;
+                form.AcceptButton = button_OK;
+                form.CancelButton = button_Cancel;
+                form.MinimizeBox = false;
+                form.MaximizeBox = false;
+                form.ControlBox = false;
 
-            if (dialogResult == DialogResult.Cancel)
-                return null;
+                form.Controls.AddRange(new Control[] { button_OK, button_Cancel });
+                var i = 1;
+                foreach (var rdpEntry in rdpList.OrderBy(x => x.Username))
+                {
+                    if (i == 1)
+                    {
+                        panel.Controls.Add(new RadioButton() { Text = rdpEntry.Username, Checked = true });
+                    }
+                    else
+                    {
+                        panel.Controls.Add(new RadioButton() { Text = rdpEntry.Username });
+                    }
+                    i++;
+                }
+                form.Controls.Add(panel);
 
-            RadioButton rbSelected = panel.Controls
-                         .OfType<RadioButton>()
-                         .FirstOrDefault(r => r.Checked);
+                DialogResult dialogResult = form.ShowDialog();
 
-            return rdpList.FirstOrDefault(x => x.Username.Equals(rbSelected.Text));
+                if (dialogResult == DialogResult.Cancel)
+                    return null;
+
+                RadioButton rbSelected = panel.Controls
+                             .OfType<RadioButton>()
+                             .FirstOrDefault(r => r.Checked);
+
+                return rdpList.FirstOrDefault(x => x.Username.Equals(rbSelected.Text));
+            }
         }
 
         public static bool IsOverlapped(IWin32Window window)
@@ -279,7 +286,7 @@ namespace LCS.Forms
         private void CheDataGridView_ColumnHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
         {
             if (cheDataGridView.DataSource == null || _cheInstancesList == null) return;
-            _cheInstancesSource.DataSource = _cheSortAscending ? _cheInstancesList.OrderBy(cheDataGridView.Columns[e.ColumnIndex].DataPropertyName).ToList() : _cheInstancesList.OrderBy(cheDataGridView.Columns[e.ColumnIndex].DataPropertyName).Reverse().ToList();
+            _cheInstancesSource.DataSource = _cheSortAscending ? _cheInstancesList.AsQueryable().OrderBy(cheDataGridView.Columns[e.ColumnIndex].DataPropertyName).ToList() : _cheInstancesList.AsQueryable().OrderBy(cheDataGridView.Columns[e.ColumnIndex].DataPropertyName).Reverse().ToList();
             _cheSortAscending = !_cheSortAscending;
             cheDataGridView.ClearSelection();
         }
@@ -1775,7 +1782,7 @@ namespace LCS.Forms
         private void SaasDataGridView_ColumnHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
         {
             if (saasDataGridView.DataSource == null || _saasInstancesList == null) return;
-            _saasInstancesSource.DataSource = _saasSortAscending ? _saasInstancesList.OrderBy(saasDataGridView.Columns[e.ColumnIndex].DataPropertyName).ToList() : _saasInstancesList.OrderBy(saasDataGridView.Columns[e.ColumnIndex].DataPropertyName).Reverse().ToList();
+            _saasInstancesSource.DataSource = _saasSortAscending ? _saasInstancesList.AsQueryable().OrderBy(saasDataGridView.Columns[e.ColumnIndex].DataPropertyName).ToList() : _saasInstancesList.AsQueryable().OrderBy(saasDataGridView.Columns[e.ColumnIndex].DataPropertyName).Reverse().ToList();
             _saasSortAscending = !_saasSortAscending;
             saasDataGridView.ClearSelection();
         }
