@@ -37,10 +37,18 @@ namespace LCS.Forms
             AutoRefreshCheckBox.Checked = Properties.Settings.Default.autorefresh;
             minimizeToNotificationArea.Checked = Properties.Settings.Default.minimizeToNotificationArea;
             textBoxProjectExcl.Text = Properties.Settings.Default.projOrgExcl;
+            RDPCredentialsCheckbox.Checked = Properties.Settings.Default.RDPCredentialsEnabled;
+            LocalCredentialsCheckbox.Checked = Properties.Settings.Default.LocalCredentialsEnabled;
             CachingEnabledCheckbox.Checked = Properties.Settings.Default.cachingEnabled;
             StoreCacheCheckBox.Checked = Properties.Settings.Default.keepCache;
             alwaysLogAsAdmin.Checked = Properties.Settings.Default.alwaysLogAsAdmin;
             uriSchemeEnabled.Checked = Properties.Settings.Default.uriSchemeEnabled;
+            textBoxLcsUrl.Text = Properties.Settings.Default.lcsURL;
+            textBoxLcsUpdateUrl.Text = Properties.Settings.Default.lcsUpdateURL;
+            textBoxLcsDiagUrl.Text = Properties.Settings.Default.lcsDiagURL;
+            textBoxLcsFixUrl.Text = Properties.Settings.Default.lcsFixURL;
+            addExternalIpAddress.Checked = Properties.Settings.Default.populateOwnIPForNSG;
+
             SetStoreCacheEnabledDisabled();
         }
 
@@ -49,10 +57,18 @@ namespace LCS.Forms
             Properties.Settings.Default.autorefresh = AutoRefreshCheckBox.Checked;
             Properties.Settings.Default.minimizeToNotificationArea = minimizeToNotificationArea.Checked;
             Properties.Settings.Default.projOrgExcl = textBoxProjectExcl.Text;
+            Properties.Settings.Default.RDPCredentialsEnabled = RDPCredentialsCheckbox.Checked;
+            Properties.Settings.Default.LocalCredentialsEnabled = LocalCredentialsCheckbox.Checked;
             Properties.Settings.Default.cachingEnabled = CachingEnabledCheckbox.Checked;
             Properties.Settings.Default.keepCache = StoreCacheCheckBox.Checked;
             Properties.Settings.Default.alwaysLogAsAdmin = alwaysLogAsAdmin.Checked;
             Properties.Settings.Default.uriSchemeEnabled = uriSchemeEnabled.Checked;
+            Properties.Settings.Default.lcsURL = textBoxLcsUrl.Text;
+            Properties.Settings.Default.lcsUpdateURL = textBoxLcsUpdateUrl.Text;
+            Properties.Settings.Default.lcsDiagURL = textBoxLcsDiagUrl.Text;
+            Properties.Settings.Default.lcsFixURL = textBoxLcsFixUrl.Text;
+            Properties.Settings.Default.populateOwnIPForNSG = addExternalIpAddress.Checked;
+
             Properties.Settings.Default.Save();
         }
 
@@ -90,7 +106,7 @@ namespace LCS.Forms
             if (Properties.Settings.Default.uriSchemeEnabled != uriSchemeEnabled.Checked)
             {
                 try
-                { 
+                {
                     bool success = false;
                     if (uriSchemeEnabled.Checked)
                     {
@@ -101,10 +117,10 @@ namespace LCS.Forms
                         success = URIHandler.RemoveHandler();
                     }
                     if (success)
-                    { 
-                       SetParameters();
+                    {
+                        SetParameters();
                     }
-                }  
+                }
                 finally
                 {
                     LoadParameters();

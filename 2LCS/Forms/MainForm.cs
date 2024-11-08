@@ -20,6 +20,8 @@ using Xceed.Document.NET;
 using Xceed.Words.NET;
 using static LCS.NativeMethods;
 using System.Globalization;
+using LCS.AssetLibrary;
+using AutoMapper;
 
 namespace LCS.Forms
 {
@@ -27,9 +29,9 @@ namespace LCS.Forms
     {
         private const int GW_HWNDPREV = 3;
         private const int InternetCookieHttponly = 0x2000;
-        private const string _lcsDiagUrl = "https://diag.lcs.dynamics.com";
-        private const string _lcsUpdateUrl = "https://update.lcs.dynamics.com";
-        private const string _lcsUrl = "https://lcs.dynamics.com";
+        private static readonly string _lcsDiagUrl = URIHandler.LCS_DIAG_URL;
+        private static readonly string _lcsUpdateUrl = URIHandler.LCS_UPDATE_URL;
+        private static readonly string _lcsUrl = URIHandler.LCS_URL;
         private readonly BindingSource _cheInstancesSource = new BindingSource();
         private readonly BindingSource _saasInstancesSource = new BindingSource();
         private List<CloudHostedInstance> _cheInstancesList;
@@ -201,10 +203,10 @@ namespace LCS.Forms
 
         private void AssetLibraryToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start($"https://lcs.dynamics.com/V2/AssetLibrary/{_selectedProject.Id}");
+            WebBrowserHelper.OpenUri($"{URIHandler.LCS_URL}/V2/AssetLibrary/{_selectedProject.Id}");
         }
 
-        private void ChangeProjectMenuItem_Click(object sender, EventArgs e)
+        private async void ChangeProjectMenuItem_Click(object sender, EventArgs e)
         {
             using var form = new ChooseProject
             {
@@ -240,8 +242,7 @@ namespace LCS.Forms
                 SetLcsProjectText();
                 CreateProjectLinksMenuItems();
                 EnableDisableMenuItems();
-                RefreshChe(Properties.Settings.Default.autorefresh);
-                RefreshSaas(Properties.Settings.Default.autorefresh);
+                await RefreshEnvironmentsAsync(Properties.Settings.Default.autorefresh);
             }
         }
 
@@ -552,7 +553,7 @@ namespace LCS.Forms
             {
                 var item = (CloudHostedInstance)row.DataBoundItem;
                 var link = ParseCustomLink(((ToolStripMenuItem)sender).ToolTipText, item);
-                Process.Start(link);
+                WebBrowserHelper.OpenUri(link);
             }
             Cursor = Cursors.Default;
         }
@@ -581,7 +582,7 @@ namespace LCS.Forms
             foreach (DataGridViewRow row in SelectedDataGridView.SelectedRows)
             {
                 var item = (CloudHostedInstance)row.DataBoundItem;
-                Process.Start($"https://lcs.dynamics.com/V2/ConfigurationAndDataManagementHistory/{_selectedProject.Id}?environmentId={item.EnvironmentId}");
+                WebBrowserHelper.OpenUri($"{URIHandler.LCS_URL}/V2/ConfigurationAndDataManagementHistory/{_selectedProject.Id}?environmentId={item.EnvironmentId}");
             }
             Cursor = Cursors.Default;
         }
@@ -695,7 +696,7 @@ namespace LCS.Forms
             foreach (DataGridViewRow row in SelectedDataGridView.SelectedRows)
             {
                 var item = (CloudHostedInstance)row.DataBoundItem;
-                Process.Start($"https://diag.lcs.dynamics.com/BuildInfo/Index/{_selectedProject.Id}?lcsEnvironmentId={item.EnvironmentId}");
+                WebBrowserHelper.OpenUri($"{URIHandler.LCS_DIAG_URL}/BuildInfo/Index/{_selectedProject.Id}?lcsEnvironmentId={item.EnvironmentId}");
             }
             Cursor = Cursors.Default;
         }
@@ -706,7 +707,7 @@ namespace LCS.Forms
             foreach (DataGridViewRow row in SelectedDataGridView.SelectedRows)
             {
                 var item = (CloudHostedInstance)row.DataBoundItem;
-                Process.Start($"https://lcs.dynamics.com/V2/EnvironmentHistory/{_selectedProject.Id}?LcsEnvironmentName={item.DisplayName}&EnvironmentId={item.EnvironmentId}&EnvironmentType={item.SaasEnvironmentType}");
+                WebBrowserHelper.OpenUri($"{URIHandler.LCS_URL}/V2/EnvironmentHistory/{_selectedProject.Id}?LcsEnvironmentName={item.DisplayName}&EnvironmentId={item.EnvironmentId}&EnvironmentType={item.SaasEnvironmentType}");
             }
             Cursor = Cursors.Default;
         }
@@ -717,48 +718,31 @@ namespace LCS.Forms
             foreach (DataGridViewRow row in SelectedDataGridView.SelectedRows)
             {
                 var item = (CloudHostedInstance)row.DataBoundItem;
-                Process.Start($"https://diag.lcs.dynamics.com/Monitoring/Index/{_selectedProject.Id}?environmentId={item.EnvironmentId}");
+                WebBrowserHelper.OpenUri($"{URIHandler.LCS_DIAG_URL}/Monitoring/Index/{_selectedProject.Id}?environmentId={item.EnvironmentId}");
             }
             Cursor = Cursors.Default;
         }
 
-        private void ExportEnvironmentUpdates(LCSEnvironments _LCSEnvironments)
+        private async void ExportEnvironmentUpdates(LCSEnvironments _LCSEnvironments)
         {
             notifyIcon.BalloonTipText = $"Exporting list of Environment Updates to {_LCSEnvironments} environments for current project. Please wait...";
             notifyIcon.BalloonTipTitle = $"Exporting list of Environment Updates";
 
             notifyIcon.ShowBalloonTip(2000); //This setting might be overruled by the OS
-                       
+
             var previousProject = _selectedProject;
             var exportedActionDetailList = new List<ActionDetails>();
-           
+
             _httpClientHelper.ChangeLcsProjectId(_selectedProject.Id.ToString());
             _httpClientHelper.LcsProjectTypeId = _selectedProject.ProjectTypeId;
-            RefreshChe();
-            RefreshSaas();
+            await RefreshEnvironmentsAsync();
 
             if (_LCSEnvironments == LCSEnvironments.ALL || _LCSEnvironments == LCSEnvironments.SAAS)
                 if (_saasInstancesList != null && _saasInstancesList.Count > 0)
                 {
                     foreach (var _instance in _saasInstancesList)
                     {
-                        List<ActionDetails> actions = _httpClientHelper.GetEnvironmentHistoryDetails(_instance);
-                        if (actions != null)
-                        {
-                            foreach (ActionDetails _action in actions)
-                            {
-                                _action.EnvironmentName = _instance.DisplayName;
-                                exportedActionDetailList.Add(_action);
-                            }
-                        }
-                    }                
-            }
-            if (_LCSEnvironments == LCSEnvironments.ALL || _LCSEnvironments == LCSEnvironments.CHE)
-                if (_cheInstancesList != null && _cheInstancesList.Count > 0)
-                {
-                    foreach (var _instance in _cheInstancesList)
-                    {
-                        List<ActionDetails> actions = _httpClientHelper.GetEnvironmentHistoryDetails(_instance);
+                        List<ActionDetails> actions = await _httpClientHelper.GetEnvironmentHistoryDetailsAsync(_instance);
                         if (actions != null)
                         {
                             foreach (ActionDetails _action in actions)
@@ -768,7 +752,23 @@ namespace LCS.Forms
                             }
                         }
                     }
-            }
+                }
+            if (_LCSEnvironments == LCSEnvironments.ALL || _LCSEnvironments == LCSEnvironments.CHE)
+                if (_cheInstancesList != null && _cheInstancesList.Count > 0)
+                {
+                    foreach (var _instance in _cheInstancesList)
+                    {
+                        List<ActionDetails> actions = await _httpClientHelper.GetEnvironmentHistoryDetailsAsync(_instance);
+                        if (actions != null)
+                        {
+                            foreach (ActionDetails _action in actions)
+                            {
+                                _action.EnvironmentName = _instance.DisplayName;
+                                exportedActionDetailList.Add(_action);
+                            }
+                        }
+                    }
+                }
 
             SaveFileDialog savefile = new SaveFileDialog
             {
@@ -793,12 +793,10 @@ namespace LCS.Forms
             _httpClientHelper.ChangeLcsProjectId(_selectedProject.Id.ToString());
             _httpClientHelper.LcsProjectTypeId = _selectedProject.ProjectTypeId;
             SetLcsProjectText();
-
-            RefreshChe(false);
-            RefreshSaas(false);
+            await RefreshEnvironmentsAsync(false);
         }
 
-        private void ExportListOfInstancesForAllProjects(LCSEnvironments _LCSEnvironments, LCSProjectAllCurrent _LCSProjectAllCurrent)
+        private async void ExportListOfInstancesForAllProjects(LCSEnvironments _LCSEnvironments, LCSProjectAllCurrent _LCSProjectAllCurrent)
         {
             notifyIcon.BalloonTipText = $"Exporting list of {_LCSEnvironments} instances for {_LCSProjectAllCurrent} LCS projects. Please wait...";
             notifyIcon.BalloonTipTitle = $"Exporting list of {_LCSEnvironments} instances";
@@ -811,7 +809,7 @@ namespace LCS.Forms
 
             if (_LCSProjectAllCurrent == LCSProjectAllCurrent.ALL)
             {
-                Projects = _httpClientHelper.GetAllProjects();
+                Projects = await _httpClientHelper.GetAllProjectsAsync();
             }
             else if (_LCSProjectAllCurrent == LCSProjectAllCurrent.CURRENT)
             {
@@ -828,8 +826,7 @@ namespace LCS.Forms
                 _httpClientHelper.ChangeLcsProjectId(_project.Id.ToString());
                 _httpClientHelper.LcsProjectTypeId = _project.ProjectTypeId;
                 SetLcsProjectText();
-                RefreshChe();
-                RefreshSaas();
+                await RefreshEnvironmentsAsync();
 
                 if (_LCSEnvironments == LCSEnvironments.ALL || _LCSEnvironments == LCSEnvironments.SAAS)
                     if (_saasInstancesList != null && _saasInstancesList.Count > 0)
@@ -908,14 +905,16 @@ namespace LCS.Forms
             _httpClientHelper.ChangeLcsProjectId(_selectedProject.Id.ToString());
             _httpClientHelper.LcsProjectTypeId = _selectedProject.ProjectTypeId;
             SetLcsProjectText();
-            RefreshChe(false);
-            RefreshSaas(false);
+            await RefreshEnvironmentsAsync(false);
         }
 
         private void ExportProjectDataToolStripMenuItem_Click(object sender, EventArgs e)
         {
             RefreshMenuItem_Click(null, null);
             var projectUsers = _httpClientHelper.GetAllProjectUsers();
+
+            bool includeRdpEntryPassword = Properties.Settings.Default.RDPCredentialsEnabled;
+            bool exportCHECredentials = Properties.Settings.Default.LocalCredentialsEnabled;
 
             notifyIcon.BalloonTipText = $"Exporting data for {_selectedProject.Name} project. Please wait...";
             notifyIcon.BalloonTipTitle = "Exporting LCS project data";
@@ -1087,32 +1086,35 @@ namespace LCS.Forms
                         }
 
                         instanceHeader.InsertTableAfterSelf(instanceDetailsTable);
-
-                        var rdpList = _httpClientHelper.GetRdpConnectionDetails(saasInstance);
-                        if (rdpList.Count > 0)
+                        if (includeRdpEntryPassword)
                         {
-                            var vms = document.InsertParagraph("RDP connections: " + saasInstance.DisplayName.ToUpper()).FontSize(14d);
-                            vms.SpacingBefore(20d);
-                            vms.SpacingAfter(10d);
-                            foreach (var rdpEntry in rdpList)
+                            var rdpList = _httpClientHelper.GetRdpConnectionDetails(saasInstance);
+                            if (rdpList.Count > 0)
                             {
-                                //RDP details table
-                                var columnWidths = new float[] { 300f, 400f };
-                                var rdpTable = document.AddTable(4, columnWidths.Length);
-                                rdpTable.SetWidths(columnWidths);
-                                rdpTable.Design = TableDesign.LightListAccent1;
-                                rdpTable.Alignment = Alignment.left;
-                                rdpTable.AutoFit = AutoFit.Contents;
-                                rdpTable.Rows[0].Cells[0].Paragraphs[0].Append("Machine name");
-                                rdpTable.Rows[0].Cells[1].Paragraphs[0].Append(rdpEntry.Machine);
-                                rdpTable.Rows[1].Cells[0].Paragraphs[0].Append("RDP address");
-                                rdpTable.Rows[1].Cells[1].Paragraphs[0].Append(rdpEntry.Address + ":" + rdpEntry.Port);
-                                rdpTable.Rows[2].Cells[0].Paragraphs[0].Append("User name");
-                                rdpTable.Rows[2].Cells[1].Paragraphs[0].Append(rdpEntry.Domain + "\\" + rdpEntry.Username);
-                                rdpTable.Rows[3].Cells[0].Paragraphs[0].Append("Password");
-                                rdpTable.Rows[3].Cells[1].Paragraphs[0].Append(rdpEntry.Password);
-                                document.InsertTable(rdpTable);
-                                document.InsertParagraph();
+                                var vms = document.InsertParagraph("RDP connections: " + saasInstance.DisplayName.ToUpper()).FontSize(14d);
+                                vms.SpacingBefore(20d);
+                                vms.SpacingAfter(10d);
+                                foreach (var rdpEntry in rdpList)
+                                {
+                                    //RDP details table
+                                    var columnWidths = new float[] { 300f, 400f };
+                                    var rdpTable = document.AddTable(4, columnWidths.Length);
+                                    rdpTable.SetWidths(columnWidths);
+                                    rdpTable.Design = TableDesign.LightListAccent1;
+                                    rdpTable.Alignment = Alignment.left;
+                                    rdpTable.AutoFit = AutoFit.Contents;
+                                    rdpTable.Rows[0].Cells[0].Paragraphs[0].Append("Machine name");
+                                    rdpTable.Rows[0].Cells[1].Paragraphs[0].Append(rdpEntry.Machine);
+                                    rdpTable.Rows[1].Cells[0].Paragraphs[0].Append("RDP address");
+                                    rdpTable.Rows[1].Cells[1].Paragraphs[0].Append(rdpEntry.Address + ":" + rdpEntry.Port);
+                                    rdpTable.Rows[2].Cells[0].Paragraphs[0].Append("User name");
+                                    rdpTable.Rows[2].Cells[1].Paragraphs[0].Append(rdpEntry.Domain + "\\" + rdpEntry.Username);
+                                    rdpTable.Rows[3].Cells[0].Paragraphs[0].Append("Password");
+                                    rdpTable.Rows[3].Cells[1].Paragraphs[0].Append(rdpEntry.Password);
+
+                                    document.InsertTable(rdpTable);
+                                    document.InsertParagraph();
+                                }
                             }
                         }
                         foreach (var vm in saasInstance.Instances)
@@ -1206,69 +1208,77 @@ namespace LCS.Forms
                         }
 
                         instanceHeader.InsertTableAfterSelf(instanceDetailsTable);
-                        var rdpList = _httpClientHelper.GetRdpConnectionDetails(instance);
-                        if (rdpList.Count > 0)
+                        if (includeRdpEntryPassword)
                         {
-                            var vms = document.InsertParagraph("RDP connections: " + instance.DisplayName.ToUpper()).FontSize(14d);
-                            vms.SpacingBefore(20d);
-                            vms.SpacingAfter(10d);
-                            foreach (var rdpEntry in rdpList)
+                            var rdpList = _httpClientHelper.GetRdpConnectionDetails(instance);
+                            if (rdpList.Count > 0)
                             {
-                                //RDP details table
-                                var columnWidths = new float[] { 300f, 400f };
-                                var rdpTable = document.AddTable(3, columnWidths.Length);
-                                rdpTable.SetWidths(columnWidths);
-                                rdpTable.Design = TableDesign.LightListAccent1;
-                                rdpTable.Alignment = Alignment.left;
-                                rdpTable.AutoFit = AutoFit.Contents;
-                                rdpTable.Rows[0].Cells[0].Paragraphs[0].Append("RDP address");
-                                rdpTable.Rows[0].Cells[1].Paragraphs[0].Append(rdpEntry.Address + ":" + rdpEntry.Port);
-                                rdpTable.Rows[1].Cells[0].Paragraphs[0].Append("User name");
-                                rdpTable.Rows[1].Cells[1].Paragraphs[0].Append(rdpEntry.Domain + "\\" + rdpEntry.Username);
-                                rdpTable.Rows[2].Cells[0].Paragraphs[0].Append("Password");
-                                rdpTable.Rows[2].Cells[1].Paragraphs[0].Append(rdpEntry.Password);
-                                document.InsertTable(rdpTable);
-                                document.InsertParagraph();
+                                var vms = document.InsertParagraph("RDP connections: " + instance.DisplayName.ToUpper()).FontSize(14d);
+                                vms.SpacingBefore(20d);
+                                vms.SpacingAfter(10d);
+                                foreach (var rdpEntry in rdpList)
+                                {
+                                    //RDP details table
+                                    var columnWidths = new float[] { 300f, 400f };
+                                    var rdpTable = document.AddTable(3, columnWidths.Length);
+                                    rdpTable.SetWidths(columnWidths);
+                                    rdpTable.Design = TableDesign.LightListAccent1;
+                                    rdpTable.Alignment = Alignment.left;
+                                    rdpTable.AutoFit = AutoFit.Contents;
+                                    rdpTable.Rows[0].Cells[0].Paragraphs[0].Append("RDP address");
+                                    rdpTable.Rows[0].Cells[1].Paragraphs[0].Append(rdpEntry.Address + ":" + rdpEntry.Port);
+                                    rdpTable.Rows[1].Cells[0].Paragraphs[0].Append("User name");
+                                    rdpTable.Rows[1].Cells[1].Paragraphs[0].Append(rdpEntry.Domain + "\\" + rdpEntry.Username);
+                                    rdpTable.Rows[2].Cells[0].Paragraphs[0].Append("Password");
+                                    rdpTable.Rows[2].Cells[1].Paragraphs[0].Append(rdpEntry.Password);
+
+                                    document.InsertTable(rdpTable);
+                                    document.InsertParagraph();
+                                }
                             }
                         }
-                        foreach (var vm in instance.Instances)
-                        {
-                            var CredentialsDict = _httpClientHelper.GetCredentials(instance.EnvironmentId, vm.ItemName);
-                            if (CredentialsDict.Count > 0)
-                            {
-                                var credentialsParagraph = document.InsertParagraph("Credentials").FontSize(14d);
-                                credentialsParagraph.SpacingBefore(20d);
-                                credentialsParagraph.SpacingAfter(10d);
-                                // CHE credentials table
-                                var columnWidths = new float[] { 150f, 150f };
-                                var credentialsTable = document.AddTable(1, columnWidths.Length);
-                                credentialsTable.SetWidths(columnWidths);
-                                credentialsTable.Design = TableDesign.LightListAccent3;
-                                credentialsTable.Alignment = Alignment.left;
-                                credentialsTable.AutoFit = AutoFit.Contents;
-                                credentialsTable.Rows[0].Cells[0].Paragraphs[0].Append("User name");
-                                credentialsTable.Rows[0].Cells[1].Paragraphs[0].Append("Password");
 
-                                foreach (var credential in CredentialsDict)
+                        if (exportCHECredentials)
+                        {
+                            foreach (var vm in instance.Instances)
+                            {
+                                var CredentialsDict = _httpClientHelper.GetCredentials(instance.EnvironmentId, vm.ItemName);
+                                if (CredentialsDict.Count > 0)
                                 {
-                                    var r = credentialsTable.InsertRow();
-                                    r.Cells[0].Paragraphs[0].Append(credential.Key
-                                        .Replace("Dev-Local admin-", "")
-                                        .Replace("Dev-Local user-", "")
-                                        .Replace("Dev-Sql server login-", "")
-                                        .Replace("Build-Local user-", "")
-                                        .Replace("Build-Sql server login-", "")
-                                        .Replace("AOS-Local admin-", "")
-                                        .Replace("BI-Local admin-", "")
-                                        .Replace("AD-AosServiceUser-", "")
-                                        .Replace("AD-SqlServiceUser-", "")
-                                        .Replace("AD-DynamicsInstallUser-", "")
-                                        .Replace("AD-SPServiceUser-", "")
-                                        .Replace("AD-BCProxyUser-", "")
-                                        .Replace("AD-Local admin-", ""));
-                                    r.Cells[1].Paragraphs[0].Append(credential.Value);
+                                    var credentialsParagraph = document.InsertParagraph("Credentials").FontSize(14d);
+                                    credentialsParagraph.SpacingBefore(20d);
+                                    credentialsParagraph.SpacingAfter(10d);
+                                    // CHE credentials table
+                                    var columnWidths = new float[] { 150f, 150f };
+                                    var credentialsTable = document.AddTable(1, columnWidths.Length);
+                                    credentialsTable.SetWidths(columnWidths);
+                                    credentialsTable.Design = TableDesign.LightListAccent3;
+                                    credentialsTable.Alignment = Alignment.left;
+                                    credentialsTable.AutoFit = AutoFit.Contents;
+                                    credentialsTable.Rows[0].Cells[0].Paragraphs[0].Append("User name");
+                                    credentialsTable.Rows[0].Cells[1].Paragraphs[0].Append("Password");
+
+                                    foreach (var credential in CredentialsDict)
+                                    {
+                                        var r = credentialsTable.InsertRow();
+                                        r.Cells[0].Paragraphs[0].Append(credential.Key
+                                            .Replace("Dev-Local admin-", "")
+                                            .Replace("Dev-Local user-", "")
+                                            .Replace("Dev-Sql server login-", "")
+                                            .Replace("Build-Local user-", "")
+                                            .Replace("Build-Sql server login-", "")
+                                            .Replace("AOS-Local admin-", "")
+                                            .Replace("BI-Local admin-", "")
+                                            .Replace("AD-AosServiceUser-", "")
+                                            .Replace("AD-SqlServiceUser-", "")
+                                            .Replace("AD-DynamicsInstallUser-", "")
+                                            .Replace("AD-SPServiceUser-", "")
+                                            .Replace("AD-BCProxyUser-", "")
+                                            .Replace("AD-Local admin-", ""));
+                                        r.Cells[1].Paragraphs[0].Append(credential.Value);
+                                    }
+                                    credentialsParagraph.InsertTableAfterSelf(credentialsTable).InsertPageBreakAfterSelf();
                                 }
-                                credentialsParagraph.InsertTableAfterSelf(credentialsTable).InsertPageBreakAfterSelf();
                             }
                         }
                     }
@@ -1294,6 +1304,88 @@ namespace LCS.Forms
                 }
             }
             Cursor = Cursors.Default;
+        }
+
+        private async Task ExportListOfUsers(LCSProjectAllCurrent _LCSProjectAllCurrent)
+        {
+            notifyIcon.BalloonTipText = $"Exporting list of users for {_LCSProjectAllCurrent} LCS projects. Please wait...";
+            notifyIcon.BalloonTipTitle = $"Exporting list of LCS users";
+
+            notifyIcon.ShowBalloonTip(2000); //This setting might be overruled by the OS
+
+            Cursor = Cursors.WaitCursor;
+            var previousProject = _selectedProject;
+            var exportedUsers = new List<ExportedUser>();
+
+            if (_LCSProjectAllCurrent == LCSProjectAllCurrent.ALL)
+            {
+                Projects = await _httpClientHelper.GetAllProjectsAsync();
+            }
+            else if (_LCSProjectAllCurrent == LCSProjectAllCurrent.CURRENT)
+            {
+                Projects = new List<LcsProject>();
+                Projects.Add(previousProject);
+            }
+
+            Projects = ExcludeProjectsForOrganization(Projects); //remove all internal projects for export.
+
+            foreach (var _project in Projects)
+            {
+                if (_project.RequestPending == true) continue;
+                _selectedProject = _project;
+                _httpClientHelper.ChangeLcsProjectId(_project.Id.ToString());
+                _httpClientHelper.LcsProjectTypeId = _project.ProjectTypeId;
+                SetLcsProjectText();
+
+                var projectUsers = _httpClientHelper.GetAllProjectUsers();
+                if (projectUsers != null && projectUsers.Count > 0)
+                {
+                    foreach (var user in projectUsers)
+                    {
+                        var exportedUser = new ExportedUser
+                        {
+                            ProjectId = _project.Id.ToString(),
+                            ProjectName = _project.Name,
+                            Organization = _project.OrganizationName,
+                            UserName = user.UserProfile == null ? null : user.UserProfile.DisplayName,
+                            Email = user.UserProfile == null ? user.InvitationEmail : user.UserProfile.Email,
+                            OrganizationName = user.UserProfile == null ? null : user.UserProfile.Organization.Name,
+                            UserRoleDisplayName = user.UserRoleDisplayText,
+                            FunctionalRoleDisplayName = user.FunctionalRoleDisplayText,
+                            AllowContactByMicrosoft = user.AllowContactByMicrosoft.ToString(),
+                            InvitedByName = user.InvitedBy.DisplayName,
+                            InvitedByOrganisation = user.InvitedBy.DisplayName,
+                            CreatedDate = user.CreatedDate,
+                            InvitationStatusDisplayText = user.InvitationStatusDisplayText
+                        };
+                        exportedUsers.Add(exportedUser);
+                    }
+                }
+            }
+            SaveFileDialog savefile = new SaveFileDialog
+            {
+                FileName = $"D365FO users - 2LCS generated.csv",
+                Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*"
+            };
+
+            if (savefile.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    using StreamWriter sw = new StreamWriter(savefile.FileName, false, Encoding.Unicode);
+                    var csv = new CsvWriter(sw, CultureInfo.CurrentCulture);
+                    csv.WriteRecords(exportedUsers);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+            }
+            _selectedProject = previousProject;
+            _httpClientHelper.ChangeLcsProjectId(_selectedProject.Id.ToString());
+            _httpClientHelper.LcsProjectTypeId = _selectedProject.ProjectTypeId;
+            SetLcsProjectText();
+            await RefreshEnvironmentsAsync(false);
         }
 
         private LcsProject GetLcsProjectFromCookie()
@@ -1392,7 +1484,7 @@ namespace LCS.Forms
             foreach (DataGridViewRow row in SelectedDataGridView.SelectedRows)
             {
                 var item = (CloudHostedInstance)row.DataBoundItem;
-                Process.Start(_httpClientHelper.GetEnvironmentDetailsUrl(item));
+                WebBrowserHelper.OpenUri(_httpClientHelper.GetEnvironmentDetailsUrl(item));
             }
             Cursor = Cursors.Default;
         }
@@ -1440,7 +1532,7 @@ namespace LCS.Forms
                 {
                     if (link.DisplayName == "Log on to environment")
                     {
-                        Process.Start(link.NavigationUri);
+                        WebBrowserHelper.OpenUri(link.NavigationUri);
                         break;
                     }
                 }
@@ -1520,7 +1612,7 @@ namespace LCS.Forms
 
         private void LoadFromCredentialsStore()
         {
-            if(CacheUtil.SaveCacheToStoreEnabled())
+            if (CacheUtil.SaveCacheToStoreEnabled())
             {
                 CredentialsCacheHelper.LoadOffLineCredentials();
             }
@@ -1533,7 +1625,7 @@ namespace LCS.Forms
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if(CacheUtil.SaveCacheToStoreEnabled())
+            if (CacheUtil.SaveCacheToStoreEnabled())
             {
                 CredentialsCacheHelper.SaveCredentialsOffline();
             }
@@ -1607,7 +1699,7 @@ namespace LCS.Forms
                     MessageBox.Show($"Cannot retrieve RDP connection details. This instance is not accessible through RDP or you do not have access to see those details. Check if you have Environment Manager role.");
                     return;
                 }
-                else if(rdpList.Count > 1)
+                else if (rdpList.Count > 1)
                 {
                     rdpEntry = ChooseRdpLogonUser(rdpList);
                 }
@@ -1636,7 +1728,7 @@ namespace LCS.Forms
 
         private void OpenWorkItemsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start($"https://lcs.dynamics.com/V2/WorkItemsManagement/{_selectedProject.Id}");
+            WebBrowserHelper.OpenUri($"https://lcs.dynamics.com/V2/WorkItemsManagement/{_selectedProject.Id}");
         }
 
         private void ParametersToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1669,25 +1761,25 @@ namespace LCS.Forms
         private void ProjectLinkClicked(object sender, EventArgs e)
         {
             var link = ((ToolStripMenuItem)sender).ToolTipText;
-            Process.Start(link);
+            WebBrowserHelper.OpenUri(link);
         }
 
         private void ProjectSettingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start($"https://lcs.dynamics.com/V2/ProjectSettings/{_selectedProject.Id}");
+            WebBrowserHelper.OpenUri($"https://lcs.dynamics.com/V2/ProjectSettings/{_selectedProject.Id}");
         }
 
         private void ProjectUsersToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start($"https://lcs.dynamics.com/V2/ProjectUserManagement/{_selectedProject.Id}");
+            WebBrowserHelper.OpenUri($"https://lcs.dynamics.com/V2/ProjectUserManagement/{_selectedProject.Id}");
         }
 
-        private void RefreshChe(bool reloadFromLcs = true)
+        private async Task RefreshChe(bool reloadFromLcs = true)
         {
             Cursor = Cursors.WaitCursor;
             if (reloadFromLcs)
             {
-                _cheInstancesList = _httpClientHelper.GetCheInstances();
+                _cheInstancesList = await _httpClientHelper.GetCheInstancesAsync();
                 if (_cheInstancesList != null)
                 {
                     _cheInstancesSource.DataSource = _cheInstancesList;
@@ -1712,31 +1804,24 @@ namespace LCS.Forms
             Cursor = Cursors.Default;
         }
 
-        private void RefreshMenuItem_Click(object sender, EventArgs e)
+        private async void RefreshMenuItem_Click(object sender, EventArgs e)
         {
+            refreshMenuItem.Enabled = false;
             notifyIcon.BalloonTipText = $"Fetching list of environments for project {_selectedProject.Name} from LCS. Please wait...";
             notifyIcon.BalloonTipTitle = "Fetching environments";
 
             notifyIcon.ShowBalloonTip(2000); //This setting might be overruled by the OS
 
-            if (tabControl.SelectedTab == tabControl.TabPages["cheTabPage"])
-            {
-                RefreshChe();
-                RefreshSaas();
-            }
-            else if (tabControl.SelectedTab == tabControl.TabPages["saasTabPage"])
-            {
-                RefreshSaas();
-                RefreshChe();
-            }
+            await RefreshEnvironmentsAsync();
+            refreshMenuItem.Enabled = true;
         }
 
-        private void RefreshSaas(bool reloadFromLcs = true)
+        private async Task RefreshSaas(bool reloadFromLcs = true)
         {
             Cursor = Cursors.WaitCursor;
             if (reloadFromLcs)
             {
-                _saasInstancesList = _httpClientHelper.GetHostedInstances();
+                _saasInstancesList = await _httpClientHelper.GetHostedInstancesAsync();
 
                 if (_saasInstancesList != null)
                 {
@@ -1760,6 +1845,12 @@ namespace LCS.Forms
             }
             _saasInstancesSource.ResetBindings(false);
             Cursor = Cursors.Default;
+        }
+
+        public async Task RefreshEnvironmentsAsync(bool reloadFromLcs = true)
+        {
+            var tasks = new List<Task> { RefreshChe(reloadFromLcs), RefreshSaas(reloadFromLcs) };
+            await Task.WhenAll(tasks);
         }
 
         private void RemoveCustomLinksMenuItems()
@@ -2064,7 +2155,7 @@ namespace LCS.Forms
 
         private void ServiceRequestsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start($"https://lcs.dynamics.com/V2/WorkItemsManagement/{_selectedProject.Id}?ActiveVerticalPivot=3");
+            WebBrowserHelper.OpenUri($"https://lcs.dynamics.com/V2/WorkItemsManagement/{_selectedProject.Id}?ActiveVerticalPivot=3");
         }
 
         private void SetInitialGridSettings()
@@ -2152,22 +2243,22 @@ namespace LCS.Forms
 
         private void SubscriptionEstimatorToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start($"https://sizing.lcs.dynamics.com/SubscriptionEstimator/Estimate/{_selectedProject.Id}");
+            WebBrowserHelper.OpenUri($"https://sizing.lcs.dynamics.com/SubscriptionEstimator/Estimate/{_selectedProject.Id}");
         }
 
         private void SubscriptionsAvailableToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start($"https://lcs.dynamics.com/V2/OrganizationOfferDetail/{_selectedProject.Id}");
+            WebBrowserHelper.OpenUri($"https://lcs.dynamics.com/V2/OrganizationOfferDetail/{_selectedProject.Id}");
         }
 
         private void SupportIssuesToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start($"https://lcs.dynamics.com/V2/WorkItemsManagement/{_selectedProject.Id}?ActiveVerticalPivot=2");
+            WebBrowserHelper.OpenUri($"https://lcs.dynamics.com/V2/WorkItemsManagement/{_selectedProject.Id}?ActiveVerticalPivot=2");
         }
 
         private void SystemDiagnosticsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start($"https://diag.lcs.dynamics.com/Home/Index/{_selectedProject.Id}");
+            WebBrowserHelper.OpenUri($"https://diag.lcs.dynamics.com/Home/Index/{_selectedProject.Id}");
         }
 
         private void LogonToPointOfSaleToolStripMenuItem_Click(object sender, EventArgs e)
@@ -2180,7 +2271,7 @@ namespace LCS.Forms
                 {
                     if (link.DisplayName == "Log on to Cloud Point of Sale")
                     {
-                        Process.Start(link.NavigationUri);
+                        WebBrowserHelper.OpenUri(link.NavigationUri);
                         break;
                     }
                 }
@@ -2198,7 +2289,7 @@ namespace LCS.Forms
                 {
                     if (link.DisplayName == "Launch Dynamics Retail Storefront")
                     {
-                        Process.Start(link.NavigationUri);
+                        WebBrowserHelper.OpenUri(link.NavigationUri);
                         break;
                     }
                 }
@@ -2216,7 +2307,7 @@ namespace LCS.Forms
                 {
                     if (link.DisplayName == "Retail Server URL")
                     {
-                        Process.Start(link.NavigationUri);
+                        WebBrowserHelper.OpenUri(link.NavigationUri);
                         break;
                     }
                 }
@@ -2224,11 +2315,11 @@ namespace LCS.Forms
             Cursor = Cursors.Default;
         }
 
-        private void SaasUpcomingUpdatesToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void SaasUpcomingUpdatesToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Cursor = Cursors.WaitCursor;
 
-            var calendar = _httpClientHelper.GetUpcomingCalendars();
+            var calendar = await _httpClientHelper.GetUpcomingCalendarsAsync();
             if (calendar == null || calendar.Count == 0)
             {
                 Cursor = Cursors.Default;
@@ -2266,7 +2357,7 @@ namespace LCS.Forms
             }
         }
 
-        private void ExportUpdateScheduleForAllProjectsToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void ExportUpdateScheduleForAllProjectsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             notifyIcon.BalloonTipText = $"Exporting updates schedule for all LCS projects. Please wait...";
             notifyIcon.BalloonTipTitle = "Exporting updates schedule list";
@@ -2277,7 +2368,7 @@ namespace LCS.Forms
             var previousProject = _selectedProject;
             var exportedUpdates = new List<UpcomingCalendarViewModels>();
 
-            Projects = _httpClientHelper.GetAllProjects();
+            Projects = await _httpClientHelper.GetAllProjectsAsync();
             Projects = ExcludeProjectsForOrganization(Projects); //remove all internal projects for export.
 
             foreach (var _project in Projects)
@@ -2287,11 +2378,14 @@ namespace LCS.Forms
                 _httpClientHelper.ChangeLcsProjectId(_project.Id.ToString());
                 SetLcsProjectText();
 
-                List<UpcomingCalendarViewModels> calendar = _httpClientHelper.GetUpcomingCalendars();
+                List<UpcomingCalendarViewModels> calendar = await _httpClientHelper.GetUpcomingCalendarsAsync();
                 if (calendar != null && calendar.Any())
                 {
                     foreach (var _updateRow in calendar)
                     {
+                        _updateRow.LcsProjectId = _project.Id;
+                        _updateRow.LcsProjectName = _project.Name;
+                        _updateRow.OrganizationName = _project.OrganizationName;
                         exportedUpdates.Add(_updateRow);
                     }
                 }
@@ -2321,10 +2415,10 @@ namespace LCS.Forms
             _selectedProject = previousProject;
             _httpClientHelper.ChangeLcsProjectId(_selectedProject.Id.ToString());
             SetLcsProjectText();
-            RefreshChe(false);
-            RefreshSaas(false);
+
+            await RefreshEnvironmentsAsync(false);
         }
-        
+
         private void CloudHostedInstancesExportToolStripMenuItem_Click(object sender, EventArgs e)
         {
             ExportListOfInstancesForAllProjects(LCSEnvironments.CHE, LCSProjectAllCurrent.ALL);
@@ -2335,7 +2429,7 @@ namespace LCS.Forms
             ExportListOfInstancesForAllProjects(LCSEnvironments.SAAS, LCSProjectAllCurrent.ALL);
         }
 
-        private void SaasRestartService_Click(object sender, EventArgs e)
+        private async void SaasRestartService_Click(object sender, EventArgs e)
         {
             using var form = new ChooseService
             {
@@ -2356,7 +2450,7 @@ namespace LCS.Forms
                     var attempt = 1;
                     do
                     {
-                        actions = _httpClientHelper.GetOngoingActionDetails(instance);
+                        actions = await _httpClientHelper.GetOngoingActionDetailsAsync(instance);
                         if (actions != null)
                         {
                             log.AppendLine($"Attempt {attempt}. Ongoing action found! Delaying next attempt for 30 seconds...");
@@ -2399,13 +2493,13 @@ namespace LCS.Forms
             }
         }
 
-        private void EnvironmentChangesToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void EnvironmentChangesToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Cursor = Cursors.WaitCursor;
             foreach (DataGridViewRow row in SelectedDataGridView.SelectedRows)
             {
                 var instance = (CloudHostedInstance)row.DataBoundItem;
-                var actions = _httpClientHelper.GetEnvironmentHistoryDetails(instance);
+                var actions = await _httpClientHelper.GetEnvironmentHistoryDetailsAsync(instance);
                 if (actions != null)
                 {
                     using var form = new EnvironmentChanges
@@ -2418,7 +2512,7 @@ namespace LCS.Forms
             }
             Cursor = Cursors.Default;
         }
-            
+
         private void allProjectsTSMExportAllInstances_Click(object sender, EventArgs e)
         {
             ExportListOfInstancesForAllProjects(LCSEnvironments.ALL, LCSProjectAllCurrent.ALL);
@@ -2443,6 +2537,28 @@ namespace LCS.Forms
         private void saasInstancesExportChangesTSM_Click(object sender, EventArgs e)
         {
             ExportEnvironmentUpdates(LCSEnvironments.SAAS);
+        }
+
+        private async void currentProjectUsersExportMenuItem_Click(object sender, EventArgs e)
+        {
+            await ExportListOfUsers(LCSProjectAllCurrent.CURRENT);
+        }
+
+        private async void allProjectUsersExportMenuItem_Click(object sender, EventArgs e)
+        {
+            await ExportListOfUsers(LCSProjectAllCurrent.ALL);
+        }
+
+        private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            About2LCS about2LCS = new About2LCS();
+            about2LCS.ShowDialog();
+        }
+
+        private void exportListOfNuGetPackagesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using var form = new AssetLibrarySearch(_httpClientHelper);
+            form.ShowDialog();
         }
     }
 

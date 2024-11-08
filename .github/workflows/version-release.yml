@@ -1,0 +1,57 @@
+# Action to build and release a new version of the project
+# The workflow is triggered manually.
+# The workflow builds the project, creates a new release and uploads the 2LCS.zip file to it.
+# The workflow uses the GitHub Actions softprops/action-gh-release action to create the release with the 2LCS.zip file. 
+# The action takes a number of parameters, which are documented in the action's repository. 
+
+name: Build and add to new release
+
+# trigger manually
+on: 
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: 'Name of the release (e.g. v.0.47.0)'
+        required: true
+      version:
+        description: 'Version of the release (e.g. 0.47.0)'
+        required: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Setup NuGet
+      uses: nuget/setup-nuget@v2
+
+    - name: Restore NuGet packages
+      run: nuget restore 2LCS/2LCS.csproj
+
+    - name: Build
+      run: msbuild 2LCS/2LCS.csproj /p:Configuration=Release /p:OutputPath=bin/Release /p:Version=${{ inputs.version }}
+
+    - name: Upload ${{ inputs.release_name }}.zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: 2LCS_${{ inputs.release_name }}
+        path: 2LCS/bin/Release
+
+    - name: Create zip file from content of release folder
+      run: Compress-Archive -Path 2LCS\bin\Release\* -DestinationPath 2LCS_${{ inputs.release_name }}.zip
+
+    - name: Create release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: ${{ inputs.release_name }}
+        tag_name: ${{ inputs.release_name }}
+        draft: false
+        prerelease: true
+        generate_release_notes: true
+        files: 2LCS_${{ inputs.release_name }}.zip

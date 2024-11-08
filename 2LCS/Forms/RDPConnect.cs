@@ -119,7 +119,9 @@ namespace LCS.Forms
 
                 worker.ReportProgress(50, "Loading cloud-hosted instances");
 
-                CloudHostedInstance chInstance = httpClientHelper.GetCheInstances().FirstOrDefault(e => e.DisplayName == rdpData.Environment);
+                var chInstances = httpClientHelper.GetCheInstancesAsync().Result;
+                
+                var chInstance = chInstances.FirstOrDefault(e => e.DisplayName == rdpData.Environment);
 
                 if (chInstance != null)
                 {

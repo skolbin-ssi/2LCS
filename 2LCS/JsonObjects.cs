@@ -1,7 +1,126 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 
 namespace LCS.JsonObjects
 {
+
+    public class Asset
+    {
+        public string Id { get; set; }
+        public string FileName { get; set; }
+        public string FileDescription { get; set; }
+        public int CommitStatus { get; set; }
+        public int State { get; set; }
+        public int Scope { get; set; }
+        public int Version { get; set; }
+        public int FileType { get; set; }
+        public string CreatedByName { get; set; }
+        public string ModifiedByName { get; set; }
+        public bool IsGoldBuild { get; set; }
+        public int ValidationStatus { get; set; }
+        public string AadTenantId { get; set; }
+        public string ValidationStatusText { get; set; }
+        public string ReleaseDetailsAssetId { get; set; }
+        public string ReleaseDetailsLink { get; set; }
+        public string ParentAssetId { get; set; }
+        public bool IsInvalid { get; set; }
+        public string DisplayValidationSymbol { get; set; }
+        public string DisplayModifiedDate { get; set; }
+        public string DisplayCreatedDate { get; set; }
+        public string DisplayId { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string DisplayScope { get; set; }
+        public string DisplayState { get; set; }
+        public string Location { get; set; }
+        public bool IsAbsoluteLocation { get; set; }
+        public bool CanDelete { get; set; }
+        public bool CanUpdate { get; set; }
+        public bool CanPublish { get; set; }
+        public bool CanNavigate { get; set; }
+        public string DisplayVersion { get; set; }
+        public int OriginalScope { get; set; }
+        public string DisplayOriginalScope { get; set; }
+        public string LocalCreatedDate { get; set; }
+        public string LocalModifiedDate { get; set; }
+    }
+
+    public class AssetData
+    {
+        public int Category { get; set; }
+        public int AssetKind { get; set; }
+        public string AssetTypeName { get; set; }
+        public string AssetTypePluralName { get; set; }
+        public string AssetTypeNameLowercase { get; set; }
+        public string AssetTypePluralNameLowercase { get; set; }
+        public string Product { get; set; }
+        public string ProductVersion { get; set; }
+        public string ComponentId { get; set; }
+        public bool IsImportBtnVisible { get; set; }
+        public bool IsSaveToMyLibraryBtnVisible { get; set; }
+        public List<Asset> Assets { get; set; }
+        public bool IsEditBtnVisible { get; set; }
+        public bool IsDeleteBtnVisible { get; set; }
+        public bool IsGoldBuildBtnVisible { get; set; }
+        public bool IsVersionBtnVisible { get; set; }
+        public bool IsAddBtnVisible { get; set; }
+    }
+
+    public class AssetVersion
+    {
+        public string ApplicationOrPlatformVersion { get; set; }
+
+        public string Id { get; set; }
+        public string FileName { get; set; }
+        public string FileDescription { get; set; }
+        public string DisplaySize { get; set; }
+        public int CommitStatus { get; set; }
+        public int State { get; set; }
+        public int Scope { get; set; }
+        public string FileLocation { get; set; }
+        public int Version { get; set; }
+        public int FileType { get; set; }
+        public string CreatedByName { get; set; }
+        public string ModifiedByName { get; set; }
+        public bool IsGoldBuild { get; set; }
+        public string DataPackageApplicationDetails { get; set; }
+        public int ValidationStatus { get; set; }
+        public string AadTenantId { get; set; }
+        public string ValidationStatusText { get; set; }
+        public string NextValidationDate { get; set; }
+        public int NumValidationAttempts { get; set; }
+        public int NumTenantTaggingAttempts { get; set; }
+        public string ReleaseDetailsAssetId { get; set; }
+        public bool IsMockData { get; set; }
+        public string ReleaseDetailsLink { get; set; }
+        public string ParentAssetId { get; set; }
+        public bool IsInvalid { get; set; }
+        public string DisplayValidationSymbol { get; set; }
+        public string DisplayModifiedDate { get; set; }
+        public string DisplayCreatedDate { get; set; }
+        public string DisplayId { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string DisplayScope { get; set; }
+        public string DisplayState { get; set; }
+        public string Location { get; set; }
+        public bool IsAbsoluteLocation { get; set; }
+        public bool CanDelete { get; set; }
+        public bool CanUpdate { get; set; }
+        public bool CanPublish { get; set; }
+        public bool CanNavigate { get; set; }
+        public string DisplayVersion { get; set; }
+        public int OriginalScope { get; set; }
+        public string TelemetryId { get; set; }
+        public int CreatedBy { get; set; }
+        public DateTime CreatedDate { get; set; }
+        public int ModifiedBy { get; set; }
+        public DateTime ModifiedDate { get; set; }
+        public string LocalCreatedDate { get; set; }
+        public string LocalModifiedDate { get; set; }
+    }
+
+
     public class BuildInfoDetails
     {
         public List<BuildInfoTreeView> BuildInfoTreeView { get; set; }
@@ -38,6 +157,7 @@ namespace LCS.JsonObjects
         public bool CanCleanup { get; set; }
         public bool CanDeallocate { get; set; }
         public bool CanDelete { get; set; }
+        public bool CanDeleteCheMetadata { get; set; }
         public bool CanDseCreateStaging { get; set; }
         public bool CanEdit { get; set; }
         public bool CanEnableDR { get; set; }
@@ -100,23 +220,19 @@ namespace LCS.JsonObjects
         public bool IsMaintainVisible { get; set; }
         public bool IsManualUpgradeInProgress { get; set; }
         public bool IsNotificationListVisible { get; set; }
-        public bool IsPinToD365Enabled { get; set; }
-        public bool IsPinToD365Visible { get; set; }
         public bool IsPreparationFailed { get; set; }
-        public bool IsPublishedToD365 { get; set; }
         public bool IsSandboxUpgradeEnvironment { get; set; }
-        public bool IsServicingEstimationEnabled { get; set; }
         public bool IsStagingDeploymentFailed { get; set; }
         public bool IsStagingDeploymentSucceeded { get; set; }
         public bool IsUpgradeSelfServeCancelledOrCompleted { get; set; }
         public bool IsUpgradeSelfServeInProgress { get; set; }
         public bool IsUpgradeTimeExpired { get; set; }
-        public object JITExpireTimeRemaining { get; set; }
+        public string JITDetailsText { get; set; }
+        public string JITErrorText { get; set; }
         public JITOptions[] JITOptions { get; set; }
+        public string JITOptionsText { get; set; }
         public bool JITRequestAccessEnabledState { get; set; }
         public object JITRequestActivityId { get; set; }
-        public bool JITRequestShowError { get; set; }
-        public object JITWorkItemDetails { get; set; }
         public string LicenseLink { get; set; }
         public Credentials[] LocalCredentials { get; set; }
         public object Location { get; set; }
@@ -131,6 +247,7 @@ namespace LCS.JsonObjects
         public string ResourceGroupName { get; set; }
         public SaasEnvironmentType SaasEnvironmentType { get; set; }
         public object ServiceIds { get; set; }
+        public bool ShowJITExpiryWithReasonForAccess { get; set; }
         public bool ShowRetailComponents { get; set; }
         public bool ShowSslCertRotateWarning { get; set; }
         public bool ShowUpgradeEnvironmentDetails { get; set; }
@@ -219,6 +336,23 @@ namespace LCS.JsonObjects
         public string TopologyVersion { get; set; }
     }
 
+    public class ExportedUser
+    {
+        public string Organization { get; set; }
+        public string ProjectId { get; set; }
+        public string ProjectName { get; set; }
+        public string UserName { get; set; }
+        public string Email { get; set; }
+        public string OrganizationName { get; set; }
+        public string UserRoleDisplayName { get; set; }
+        public string FunctionalRoleDisplayName { get; set; }
+        public string AllowContactByMicrosoft { get; set; }
+        public string InvitedByName { get; set; }
+        public string InvitedByOrganisation { get; set; }
+        public string CreatedDate { get; set; }
+        public string InvitationStatusDisplayText { get; set; }
+    }
+
     public class Hotfix
     {
         public object Area { get; set; }
@@ -261,7 +395,7 @@ namespace LCS.JsonObjects
         public object ADOauthCode { get; set; }
         public string ADUserId { get; set; }
         public List<string> AllEmails { get; set; }
-        public string AlternateEmails { get; set; }
+        public object AlternateEmails { get; set; }
         public int CreatedBy { get; set; }
         public string CreatedDate { get; set; }//Todo
         public string DisplayName { get; set; }
@@ -323,6 +457,9 @@ namespace LCS.JsonObjects
     public class Organization
     {
         public string ADTenantId { get; set; }
+        public string Country { get; set; }
+        public string CountryCode { get; set; }
+        public string DataBoundary { get; set; }
         public int ExternalId { get; set; }
         public bool IsTemporary { get; set; }
         public object LicenseSerialNumber { get; set; }
@@ -419,6 +556,7 @@ namespace LCS.JsonObjects
         public string ModifiedDate { get; set; }//Todo
         public int ProjectId { get; set; }
         public int ProjectUserId { get; set; }
+        public int? SystemRoleId { get; set; }
         public string UserLastAccess { get; set; }//Todo
         public UserProfile UserProfile { get; set; }
         public int UserProfileId { get; set; }
@@ -514,7 +652,7 @@ namespace LCS.JsonObjects
         public object ADOauthCode { get; set; }
         public string ADUserId { get; set; }
         public List<string> AllEmails { get; set; }
-        public string AlternateEmails { get; set; }
+        public object AlternateEmails { get; set; }
         public int CreatedBy { get; set; }
         public string CreatedDate { get; set; }//Todo
         public string DisplayName { get; set; }
@@ -552,6 +690,9 @@ namespace LCS.JsonObjects
 
     public class UpcomingCalendarViewModels
     {
+        public int LcsProjectId { get; set; }
+        public string LcsProjectName { get; set; }
+        public string OrganizationName { get; set; }
         public string EnvironmentName { get; set; }
         public int StatusEnum { get; set; }
         public int EventNameEnum { get; set; }
@@ -566,6 +707,7 @@ namespace LCS.JsonObjects
         public string Status { get; set; }
         public bool IsModified { get; set; }
         public int WorkflowInstanceId { get; set; }
+        public string ReleaseName { get; set; }
     }
 
     public class JITOptions
@@ -626,11 +768,19 @@ namespace LCS.JsonObjects
         public string AdditionalInfoMessage { get; set; }
         public object AdditionalResourceLinks { get; set; }
         public bool AllowCDSResume { get; set; }
+        public bool AllowDualWriteSetup { get; set; }
         public bool AllowNewCDSConfiguration { get; set; }
+        public string CDSEnvironmentId { get; set; }
+        public object CdsInfoMisMatchMessage { get; set; }
+        public object CdsInfoMissingOnNonCHEMessage { get; set; }
         public string CDSInstanceName { get; set; }
+        public string CDSInstanceUri { get; set; }
         public object CurrentConfigurationState { get; set; }
         public object DisplayErrorMessage { get; set; }
         public bool IsCDSInstanceConfigured { get; set; }
+        public bool ShowCdsInfoMisMatchMessage { get; set; }
+        public bool ShowCdsInfoMissingOnCHEMessage { get; set; }
+        public bool ShowCdsInfoMissingOnNonCHEMessage { get; set; }
         public bool ShowProvisioningResumedMessage { get; set; }
         public bool ShowProvisioningTriggeredMessage { get; set; }
     }
